@@ -2,6 +2,9 @@
 
 uint8_t counter = 0;
 uint16_t divider = 25;
+uint8_t i2cDataArray[10];
+uint8_t i2cDataCnt;
+uint8_t *pI2CByte;
 
 void initCLK() {
 	BCSCTL1 &= ~XT2OFF;			// XT2on
@@ -59,16 +62,68 @@ void initUART0() {
 void enableI2C() {
 	P3SEL |= BIT1 | BIT3;	// select SDA and SCL on P3.1 and P3.3
 
+	U0CTL |= I2C + SYNC;	// enable I2C mode
+	U0CTL &= ~I2CEN;
+
+	// SMCLK = 12MHz / 30 = 400kHz
+	I2CTCTL = I2CSSEL_2;
+	//I2CPSC = 0x02;			// divide clock by 3
+	I2CSCLL = 0x0D;
+	I2CSCLH = 0x0D;
+
+	I2CSA = EEPROM_I2CSA;
+
+	U0CTL |= I2CEN;			// Enable I2C
 }
 
 void disableI2C() {
 	P3SEL &= ~(BIT1 | BIT3);
-	P3DIR &= ~(BIT1 | BIT3);	// deselect I2C port setting and switch to input (high-impedance)
+	P3DIR &= ~(BIT1 | BIT3); // deselect I2C port setting and switch to input (high-impedance)
 }
 
-uint16_t readI2Cmemory(){
+void startI2Cread(uint8_t cnt) {
+	I2CTCTL &= ~I2CTRX;						// read mode
+	U0CTL |= MST;                           // Master mode
 
-	return 0;		// should return No. of bytes received
+	I2CIFG &= ~RXRDYIFG;
+	I2CIE &= ~TXRDYIE;
+	I2CIE |= RXRDYIE;
+
+	I2CNDAT = cnt;
+
+	I2CTCTL |= I2CSTT;
+	while(I2CTCTL & I2CSTT);
+	I2CTCTL |= I2CSTP;
+	__bis_SR_register(LPM0_bits + GIE);
+}
+
+void startI2Cwrite(uint8_t cnt) {
+	I2CTCTL |= I2CTRX;						// write mode
+	U0CTL |= MST;                           // Master mode
+
+	I2CIFG &= ~TXRDYIFG;
+	I2CIE &= ~RXRDYIE;
+	I2CIE |= TXRDYIE;
+
+	I2CNDAT = cnt;
+
+	I2CTCTL |= I2CSTT;
+	__bis_SR_register(LPM0_bits + GIE);
+}
+
+uint8_t readI2Cmemory(uint16_t start_address, uint8_t* data, uint8_t size) {
+	i2cDataArray[1] = (start_address & 0x0F00) >> 8;
+	i2cDataArray[0] = (start_address & 0x00FF);
+	i2cDataCnt = 2;
+
+	startI2Cwrite(i2cDataCnt);
+
+	pI2CByte = data;
+	startI2Cread(size);
+
+	while(I2CTCTL & I2CSTP);
+
+	return 0;
 }
 
 /*********************************************/
@@ -82,7 +137,7 @@ uint16_t readI2Cmemory(){
  ;                // USART0 TX buffer ready?
  U1TXBUF = U1RXBUF;                          // RXBUF0 to TXBUF0
  }
-*/
+ */
 
 // Timer A0 interrupt service routine
 #pragma vector=TIMERA0_VECTOR
@@ -95,4 +150,36 @@ __interrupt void Timer_A(void) {
 		divider--;
 	}
 	CCR0 += 60000;                            // Add Offset to CCR0
+}
+
+#pragma vector=USART0TX_VECTOR
+__interrupt void I2C_ISR(void) {
+	switch (__even_in_range(I2CIV, I2CIV_STT)) {
+	case I2CIV_AL: /* I2C interrupt vector: Arbitration lost (ALIFG) */
+		break;
+	case I2CIV_NACK: /* I2C interrupt vector: No acknowledge (NACKIFG) */
+		break;
+	case I2CIV_OA: /* I2C interrupt vector: Own address (OAIFG) */
+		break;
+	case I2CIV_ARDY: /* I2C interrupt vector: Access ready (ARDYIFG) */
+		break;
+	case I2CIV_RXRDY: /* I2C interrupt vector: Receive ready (RXRDYIFG) */
+		*pI2CByte++ = I2CDRB;
+		__bic_SR_register_on_exit(LPM0_bits);
+		break;
+	case I2CIV_TXRDY: /* I2C interrupt vector: Transmit ready (TXRDYIFG) */
+		I2CDRB = i2cDataArray[(i2cDataCnt--) - 1];	// load data to send
+
+		if (!i2cDataCnt) {
+			I2CIE &= ~TXRDYIE;                  // disable interrupts
+			I2CIFG &= ~TXRDYIFG;                // Clear USCI_B0 TX int flag
+			__bic_SR_register_on_exit(LPM0_bits);
+			// Exit LPM0
+		}
+		break;
+	case I2CIV_GC: /* I2C interrupt vector: General call (GCIFG) */
+		break;
+	case I2CIV_STT: /* I2C interrupt vector: Start condition (STTIFG) */
+		break;
+	}
 }

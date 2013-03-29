@@ -1,6 +1,8 @@
 #include <stdint.h>
 #include <msp430.h>
 
+#define EEPROM_I2CSA	0x50	// 0b101_0000
+
 void initCLK();
 void initUART0();
 void enableTUSB3410();
@@ -9,4 +11,4 @@ void initTimer();
 
 void enableI2C();
 void disableI2C();
-uint16_t readI2Cmemory();
+uint8_t readI2Cmemory(uint16_t start_address, uint8_t* data, uint8_t size);
