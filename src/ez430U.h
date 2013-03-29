@@ -12,3 +12,4 @@ void initTimer();
 void enableI2C();
 void disableI2C();
 uint8_t readI2Cmemory(uint16_t start_address, uint8_t* data, uint8_t size);
+uint8_t writeI2Cmemory(uint16_t start_address, uint16_t word);

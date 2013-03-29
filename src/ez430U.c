@@ -2,7 +2,7 @@
 
 uint8_t counter = 0;
 uint16_t divider = 25;
-uint8_t i2cDataArray[2];
+uint8_t i2cDataArray[34];
 uint8_t i2cDataCnt;
 uint8_t *pI2CByte;
 
@@ -97,7 +97,7 @@ void startI2Cread(uint8_t cnt) {
 	__bis_SR_register(LPM0_bits + GIE);
 }
 
-void startI2Cwrite(uint8_t cnt) {
+void startI2Cwrite(uint8_t cnt, uint8_t stop) {
 	I2CTCTL |= I2CTRX;						// write mode
 	U0CTL |= MST;                           // Master mode
 
@@ -108,6 +108,12 @@ void startI2Cwrite(uint8_t cnt) {
 	I2CNDAT = cnt;
 
 	I2CTCTL |= I2CSTT;
+
+	if (stop) {
+		while(I2CTCTL & I2CSTT);
+		I2CTCTL |= I2CSTP;
+	}
+
 	__bis_SR_register(LPM0_bits + GIE);
 }
 
@@ -116,10 +122,24 @@ uint8_t readI2Cmemory(uint16_t start_address, uint8_t* data, uint8_t size) {
 	i2cDataArray[0] = (start_address & 0x00FF);
 	i2cDataCnt = 2;
 
-	startI2Cwrite(i2cDataCnt);
+	startI2Cwrite(i2cDataCnt, 0);
 
 	pI2CByte = data;
 	startI2Cread(size);
+
+	while(I2CTCTL & I2CSTP);
+
+	return 0;
+}
+
+uint8_t writeI2Cmemory(uint16_t start_address, uint16_t word) {
+	i2cDataArray[3] = (start_address & 0xFF00) >> 8;
+	i2cDataArray[2] = (start_address & 0x00FF);
+	i2cDataArray[1] = (word & 0x00FF);
+	i2cDataArray[0] = (word & 0xFF00) >> 8;
+	i2cDataCnt = 4;
+
+	startI2Cwrite(i2cDataCnt, 1);
 
 	while(I2CTCTL & I2CSTP);
 
