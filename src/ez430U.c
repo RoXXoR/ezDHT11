@@ -2,7 +2,7 @@
 
 uint8_t counter = 0;
 uint16_t divider = 25;
-uint8_t i2cDataArray[10];
+uint8_t i2cDataArray[2];
 uint8_t i2cDataCnt;
 uint8_t *pI2CByte;
 
@@ -112,7 +112,7 @@ void startI2Cwrite(uint8_t cnt) {
 }
 
 uint8_t readI2Cmemory(uint16_t start_address, uint8_t* data, uint8_t size) {
-	i2cDataArray[1] = (start_address & 0x0F00) >> 8;
+	i2cDataArray[1] = (start_address & 0xFF00) >> 8;
 	i2cDataArray[0] = (start_address & 0x00FF);
 	i2cDataCnt = 2;
 
