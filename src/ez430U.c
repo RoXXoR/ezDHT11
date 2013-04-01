@@ -9,12 +9,11 @@ uint8_t *pI2CByte;
 void initCLK() {
 	BCSCTL1 &= ~XT2OFF;			// XT2on
 
+	BCSCTL2 |= SELM_2 | DIVM_0 | SELS;	// MCLK = SMCLK = XT2
+
 	while (IFG1 & OFIFG) {
 		IFG1 &= ~OFIFG;			// Clear OSCFault flag
 	}
-
-	BCSCTL2 |= SELM_2 * DIVM_1 + SELS;	// MCLK*2 = SMCLK = XT2
-
 }
 
 void initTimer() {

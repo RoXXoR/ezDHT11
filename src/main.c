@@ -1,4 +1,5 @@
 #include "ez430U.h"
+#include "dht11.h"
 /*
  * main.c
  */
@@ -12,14 +13,17 @@ volatile uint8_t received[0x800];
 
 int main(void) {
 	enum {
-		readI2Cmem, defaultTUSB, restoreTUSB, sendUART
+		readI2Cmem, defaultTUSB, restoreTUSB, sendUART, readDHT
 	} command;
 	uint16_t i;
+	dht11Data_t sensorData;
 	WDTCTL = WDTPW | WDTHOLD;	// Stop watchdog timer
 
-	command = sendUART;
+	command = readDHT;
 
 	initCLK();
+	P4DIR = 0x00;
+	P4OUT = 0x00;
 
 	switch (command) {
 	case (readI2Cmem):
@@ -55,8 +59,10 @@ int main(void) {
 		initTimer();
 		enableTUSB3410();
 		__bis_SR_register(LPM0_bits | GIE);
-		//__bis_SR_register(LPM0_bits);
 		__no_operation();
+		break;
+	case (readDHT):
+		getData(&sensorData);
 		__no_operation();
 		break;
 	default:
