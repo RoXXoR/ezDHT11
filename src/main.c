@@ -17,11 +17,15 @@ int main(void) {
 	} command;
 	uint16_t i;
 	dht11Data_t sensorData;
+
+	unsigned char string[] = "\rT: XX H: XX";		// formated string for output
+
 	WDTCTL = WDTPW | WDTHOLD;	// Stop watchdog timer
 
-	command = readDHT;
+	command = sendUART;
 
 	initCLK();
+	// set all P4 pins to input
 	P4DIR = 0x00;
 	P4OUT = 0x00;
 
@@ -56,10 +60,16 @@ int main(void) {
 		break;
 	case (sendUART):
 		initUART0();
-		initTimer();
 		enableTUSB3410();
-		__bis_SR_register(LPM0_bits | GIE);
-		__no_operation();
+		while (1) {
+			initTimer();
+			__bis_SR_register(LPM0_bits | GIE);
+			getData(&sensorData);
+			int2String(sensorData.formated.intTemperature, &string[4]);		// overwrite first XX in string
+			int2String(sensorData.formated.intHumidity, &string[10]);		// overwrite second XX in string
+			sendString(string, sizeof(string));
+			__no_operation();
+		}
 		break;
 	case (readDHT):
 		getData(&sensorData);
@@ -69,8 +79,6 @@ int main(void) {
 		break;
 	}
 
-	while (1)
-		;
 	return 0;
 }
 

@@ -44,18 +44,6 @@ void initUART0() {
 	U0MCTL = 0x00;                            // no modulation
 	U0CTL &= ~SWRST;                          // Initialize USART state machine
 //	IE1 |= URXIE0;                            // Enable USART0 RX interrupt
-
-	P3SEL |= BIT6 + BIT7;		// P3.6,7 = USART1 TXD/RXD
-
-	ME2 |= UTXE1 + URXE1;                     // Enable USART0 TXD/RXD
-	U1CTL |= CHAR;                            // 8-bit character
-	U1TCTL |= SSEL1;                          // UCLK = SMCLK
-	U1BR0 = 0x71;                             // 12Mhz/19200 = 625
-	U1BR1 = 0x02;                             //
-	U1MCTL = 0x00;                            // no modulation
-	U1CTL &= ~SWRST;                          // Initialize USART state machine
-//	IE2 |= URXIE1;                            // Enable USART0 RX interrupt
-
 }
 
 void enableI2C() {
@@ -91,7 +79,8 @@ void startI2Cread(uint8_t cnt) {
 	I2CNDAT = cnt;
 
 	I2CTCTL |= I2CSTT;
-	while(I2CTCTL & I2CSTT);
+	while (I2CTCTL & I2CSTT)
+		;
 	I2CTCTL |= I2CSTP;
 	__bis_SR_register(LPM0_bits + GIE);
 }
@@ -109,7 +98,8 @@ void startI2Cwrite(uint8_t cnt, uint8_t stop) {
 	I2CTCTL |= I2CSTT;
 
 	if (stop) {
-		while(I2CTCTL & I2CSTT);
+		while (I2CTCTL & I2CSTT)
+			;
 		I2CTCTL |= I2CSTP;
 	}
 
@@ -126,7 +116,8 @@ uint8_t readI2Cmemory(uint16_t start_address, uint8_t* data, uint8_t size) {
 	pI2CByte = data;
 	startI2Cread(size);
 
-	while(I2CTCTL & I2CSTP);
+	while (I2CTCTL & I2CSTP)
+		;
 
 	return 0;
 }
@@ -140,9 +131,25 @@ uint8_t writeI2Cmemory(uint16_t start_address, uint16_t word) {
 
 	startI2Cwrite(i2cDataCnt, 1);
 
-	while(I2CTCTL & I2CSTP);
+	while (I2CTCTL & I2CSTP)
+		;
 
 	return 0;
+}
+
+// send string via USART0
+uint8_t sendString(unsigned char* string, uint8_t length) {
+	while (length--) {
+		while (!(IFG1 & UTXIFG0));
+		U0TXBUF = *string++;
+	}
+	return length;
+}
+
+// convert 8bit integer to 2 char BCD ASCII
+void int2String(uint8_t input, unsigned char* output) {
+	*output++ = ('0' + input/10);
+	*output = ('0' + input%10);
 }
 
 /*********************************************/
@@ -162,8 +169,8 @@ uint8_t writeI2Cmemory(uint16_t start_address, uint16_t word) {
 #pragma vector=TIMERA0_VECTOR
 __interrupt void Timer_A(void) {
 	if (divider == 1) {
-		U0TXBUF = counter;
-		U1TXBUF = counter++;
+		//U0TXBUF = counter++;
+		__bic_SR_register_on_exit(LPM0_bits);
 		divider = 25;
 	} else {
 		divider--;

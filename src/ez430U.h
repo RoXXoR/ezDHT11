@@ -4,9 +4,14 @@
 #define EEPROM_I2CSA	0x50	// 0b101_0000
 
 void initCLK();
+
 void initUART0();
+uint8_t sendString(unsigned char* string, uint8_t length);
+void int2String(uint8_t input, unsigned char* output);
+
 void enableTUSB3410();
 void disableTUSB3410();
+
 void initTimer();
 
 void enableI2C();
