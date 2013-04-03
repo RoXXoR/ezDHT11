@@ -20,6 +20,7 @@ int main(void) {
 	P4DIR = 0x00;
 	P4OUT = 0x00;
 
+/*
 	// find out if tusb3410 will use default values
 	disableTUSB3410();	// -> avoid access from second I2C master
 	enableI2C();
@@ -29,6 +30,7 @@ int main(void) {
 	}
 
 	disableI2C();
+*/
 	enableTUSB3410();
 	initUART0();
 

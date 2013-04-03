@@ -37,13 +37,13 @@ void disableTUSB3410() {
 void initUART0() {
 	P3SEL |= BIT4 + BIT5;		// P3.4,5 = USART0 TXD/RXD
 
-	ME1 |= UTXE0 + URXE0;		// Enable USART0 TXD/RXD
-	U0CTL |= CHAR;				// 8-bit character
-	U0TCTL |= SSEL1;			// UCLK = SMCLK
-	U0BR0 = 0x71;				// 12Mhz/19200 = 625
-	U0BR1 = 0x02;				//
-	U0MCTL = 0x00;				// no modulation
-	U0CTL &= ~SWRST;			// Initialize USART state machine
+	ME1 |= UTXE0 + URXE0;                     // Enable USART0 TXD/RXD
+	U0CTL |= CHAR;                            // 8-bit character
+	U0TCTL |= SSEL1;                          // UCLK = SMCLK
+	U0BR0 = 0x71;                             // 12Mhz/19200 = 625
+	U0BR1 = 0x02;                             //
+	U0MCTL = 0x00;                            // no modulation
+	U0CTL &= ~SWRST;                          // Initialize USART state machine
 }
 
 void enableI2C() {
@@ -105,7 +105,6 @@ void startI2Cwrite(uint8_t cnt, uint8_t stop) {
 	__bis_SR_register(LPM0_bits + GIE);
 }
 
-
 uint8_t readI2Cmemory(uint16_t start_address, uint8_t* data, uint8_t size) {
 	i2cDataArray[1] = (start_address & 0xFF00) >> 8;
 	i2cDataArray[0] = (start_address & 0x00FF);
@@ -122,7 +121,6 @@ uint8_t readI2Cmemory(uint16_t start_address, uint8_t* data, uint8_t size) {
 	return 0;
 }
 
-// write 2 bytes to i2c eeprom at address start_address
 uint8_t writeI2Cmemory(uint16_t start_address, uint16_t word) {
 	i2cDataArray[3] = (start_address & 0xFF00) >> 8;
 	i2cDataArray[2] = (start_address & 0x00FF);
@@ -157,10 +155,11 @@ void int2String(uint8_t input, unsigned char* output) {
 /*   Interrupt service routines start here   */
 /*********************************************/
 
-// Timer A0 interrupt service routine for 1s delay
+// Timer A0 interrupt service routine
 #pragma vector=TIMERA0_VECTOR
 __interrupt void Timer_A(void) {
 	if (divider == 1) {
+		//U0TXBUF = counter++;
 		__bic_SR_register_on_exit(LPM0_bits);
 		divider = 25;
 	} else {
@@ -169,15 +168,22 @@ __interrupt void Timer_A(void) {
 	CCR0 += 60000;                            // Add Offset to CCR0
 }
 
-// USARTTX interrupt servoce routine for I2C communication
 #pragma vector=USART0TX_VECTOR
 __interrupt void I2C_ISR(void) {
 	switch (__even_in_range(I2CIV, I2CIV_STT)) {
-	case I2CIV_RXRDY:						// I2C receive ready (RXRDYIFG)
+	case I2CIV_AL: /* I2C interrupt vector: Arbitration lost (ALIFG) */
+		break;
+	case I2CIV_NACK: /* I2C interrupt vector: No acknowledge (NACKIFG) */
+		break;
+	case I2CIV_OA: /* I2C interrupt vector: Own address (OAIFG) */
+		break;
+	case I2CIV_ARDY: /* I2C interrupt vector: Access ready (ARDYIFG) */
+		break;
+	case I2CIV_RXRDY: /* I2C interrupt vector: Receive ready (RXRDYIFG) */
 		*pI2CByte++ = I2CDRB;
 		__bic_SR_register_on_exit(LPM0_bits);
 		break;
-	case I2CIV_TXRDY:						// I2C transmit ready (TXRDYIFG)
+	case I2CIV_TXRDY: /* I2C interrupt vector: Transmit ready (TXRDYIFG) */
 		I2CDRB = i2cDataArray[(i2cDataCnt--) - 1];	// load data to send
 
 		if (!i2cDataCnt) {
@@ -186,6 +192,10 @@ __interrupt void I2C_ISR(void) {
 			__bic_SR_register_on_exit(LPM0_bits);
 			// Exit LPM0
 		}
+		break;
+	case I2CIV_GC: /* I2C interrupt vector: General call (GCIFG) */
+		break;
+	case I2CIV_STT: /* I2C interrupt vector: Start condition (STTIFG) */
 		break;
 	}
 }
