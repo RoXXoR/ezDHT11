@@ -1,8 +1,10 @@
 #include <stdint.h>
 #include <msp430.h>
 
+// Slave Address of I2C EEPROM
 #define EEPROM_I2CSA	0x50	// 0b101_0000
 
+// init clock system (SMCLK = MCLK = XT2 = 12MHz)
 void initCLK();
 
 void initUART0();
